@@ -1,0 +1,35 @@
+body { background-color: #0D0D0D !important; }
+* { box-sizing: border-box; }
+
+/* Stat card hover lift */
+.card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+}
+
+/* Tab bar */
+.nav-tabs { border-bottom: 1px solid #252525 !important; }
+.nav-tabs .nav-link {
+  color: #A0A0A0 !important; font-family: Inter; font-size: 12px;
+  font-weight: 600; letter-spacing: 0.4px; border: none !important;
+  padding: 10px 18px; border-radius: 8px 8px 0 0 !important;
+  transition: color 0.2s, background 0.2s;
+}
+.nav-tabs .nav-link:hover { color: #fff !important; background: #1a1a1a !important; }
+.nav-tabs .nav-link.active {
+  color: #fff !important; background: #1DB954 !important;
+  border-bottom: none !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #0D0D0D; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+/* Pulse animation on header dot */
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+.pulse { animation: pulse 2.4s ease-in-out infinite; }
+
+/* Fade-in for tab content */
+.tab-content { animation: fadeIn 0.35s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:none;} }
