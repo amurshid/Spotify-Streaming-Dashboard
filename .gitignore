@@ -1,0 +1,6 @@
+__pycache__/
+atharva_more_spotify_data/ 
+my_spotify_data/
+artist_genre_cache.json 
+track_year_cache.json
+kmeans_clustering.png
