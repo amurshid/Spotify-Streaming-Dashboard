@@ -41,7 +41,7 @@ def _similarity_features(group, artist, profile):
 
 
 FEATURES = [
-    'play_count', 'skip_count', 'is_repeat',
+    'skip_count',
     'artist_sim', 'hourly_sim', 'seasonal_sim', 'dow_sim',
     'duration_sim', 'engage_sim',
 ]
@@ -93,10 +93,14 @@ def train_classifier(df_features, max_depth=5):
 
     print(f"  Tracks: {len(df_features):,}  |  Liked: {y.sum()}  |  Not liked: {(y==0).sum()}")
     print(f"  Accuracy : {acc:.1%}")
-    print(f"  Confusion : TP={tp}  FP={fp}  FN={fn}  TN={tn}")
+    print(f"  Confusion Matrix:")
+    print(f"              Predicted")
+    print(f"              Not Liked  Liked")
+    print(f"  Actual Not Liked  {tn:>6}   {fp:>5}")
+    print(f"  Actual Liked      {fn:>6}   {tp:>5}")
     print(f"  Top split feature: {top_feature}")
 
-    return clf, acc
+    return clf, acc, cm
 
 
 def train_knn(df_features, n_neighbors=5):
@@ -118,9 +122,13 @@ def train_knn(df_features, n_neighbors=5):
 
     print(f"  Tracks: {len(df_features):,}  |  Liked: {y.sum()}  |  Not liked: {(y==0).sum()}")
     print(f"  Accuracy : {acc:.1%}")
-    print(f"  Confusion : TP={tp}  FP={fp}  FN={fn}  TN={tn}")
+    print(f"  Confusion Matrix:")
+    print(f"              Predicted")
+    print(f"              Not Liked  Liked")
+    print(f"  Actual Not Liked  {tn:>6}   {fp:>5}")
+    print(f"  Actual Liked      {fn:>6}   {tp:>5}")
 
-    return knn, acc
+    return knn, acc, cm
 
 
 def predict_liked(clf, candidate_df, listener_profile):

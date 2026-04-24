@@ -4,8 +4,23 @@ import base64
 import pandas as pd
 from wordcloud import WordCloud
 
-p1 = pd.DataFrame(json.load(open("StreamingHistory_music_0.json", encoding="utf-8")))
-p2 = pd.DataFrame(json.load(open("StreamingHistory0.json",        encoding="utf-8")))
+def _load_multi(paths):
+    records = []
+    for p in paths:
+        records += json.load(open(p, encoding="utf-8"))
+    return pd.DataFrame(records)
+
+p1 = _load_multi([
+    "my_spotify_data/StreamingHistory_music_0.json",
+    "my_spotify_data/StreamingHistory_music_1.json",
+    "my_spotify_data/StreamingHistory_music_2.json",
+    "my_spotify_data/StreamingHistory_music_3.json",
+    "my_spotify_data/StreamingHistory_music_4.json",
+])
+p2 = _load_multi([
+    "atharva_more_spotify_data/StreamingHistory_music_0.json",
+    "atharva_more_spotify_data/StreamingHistory_music_1.json",
+])
 
 for df in (p1, p2):
     df["endTime"]   = pd.to_datetime(df["endTime"])

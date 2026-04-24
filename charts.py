@@ -5,6 +5,7 @@ from plotly.subplots import make_subplots
 
 from config import C1, C2, DOW, DIM, CARD2, TEXT, rgba, grad, dark, grid_axes
 from data import p1, p2
+from analytics import SIM_SCORES, SIM_FINAL, CLUSTER_DATA, WEIGHTS
 
 
 def fig_histogram():
@@ -248,16 +249,182 @@ def fig_animated_race():
     return fig
 
 
+def fig_similarity_radar():
+    dims   = list(SIM_SCORES.keys())
+    scores = [SIM_SCORES[d] for d in dims]
+    labels = [d.replace('_', ' ').title() for d in dims]
+
+    r_closed     = scores + [scores[0]]
+    theta_closed = labels + [labels[0]]
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(
+        r=r_closed, theta=theta_closed,
+        fill='toself', fillcolor=rgba(C1, 0.15),
+        line=dict(color=C1, width=2.5),
+        name='Similarity Score',
+        hovertemplate='<b>%{theta}</b><br>Score: %{r:.3f}<extra></extra>',
+    ))
+    ref = [0.5] * (len(dims) + 1)
+    fig.add_trace(go.Scatterpolar(
+        r=ref, theta=theta_closed,
+        line=dict(color=DIM, width=1, dash='dot'),
+        showlegend=False, hoverinfo='skip',
+    ))
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0, 1], gridcolor='#252525',
+                            tickfont=dict(color=DIM, size=9),
+                            tickvals=[0.25, 0.5, 0.75, 1.0]),
+            angularaxis=dict(gridcolor='#2A2A2A', tickfont=dict(color=TEXT, size=10)),
+            bgcolor='#111111',
+        ),
+        **dark(f'Listener Similarity Radar  ·  Weighted Score: {SIM_FINAL:.3f}', height=480),
+    )
+    return fig
+
+
+def fig_similarity_bars():
+    dims    = list(SIM_SCORES.keys())
+    scores  = [SIM_SCORES[d] for d in dims]
+    weights = [WEIGHTS[d]    for d in dims]
+    labels  = [d.replace('_', ' ').title() for d in dims]
+
+    order = sorted(range(len(dims)), key=lambda i: scores[i], reverse=True)
+    y = [labels[i] for i in order]
+    x = [scores[i] for i in order]
+    w = [weights[i] for i in order]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=x, y=y, orientation='h',
+        marker=dict(color=x, colorscale=grad(C1), showscale=False, line=dict(width=0)),
+        text=[f'  {s:.3f}  (w={wt:.2f})' for s, wt in zip(x, w)],
+        textposition='outside', textfont=dict(color=DIM, size=10),
+        hovertemplate='<b>%{y}</b><br>Score: %{x:.4f}<extra></extra>',
+    ))
+    fig.add_vline(x=SIM_FINAL, line_dash='dot', line_color='white', line_width=1.5,
+                  annotation_text=f'Weighted final: {SIM_FINAL:.3f}',
+                  annotation_font=dict(color='white', size=10),
+                  annotation_position='top right')
+    fig.update_layout(**dark('Similarity Breakdown by Dimension', height=360))
+    fig.update_xaxes(range=[0, 1.30])
+    grid_axes(fig)
+    return fig
+
+
+def fig_cluster_scatter():
+    cd  = CLUSTER_DATA
+    X2  = cd['X_2d']
+    var = cd['var']
+    cl  = cd['cluster_labels']
+    tl  = cd['true_labels']
+    ari = cd['ari']
+    sil = cd['sil']
+
+    fig = make_subplots(
+        1, 2,
+        subplot_titles=[
+            f'K-Means Clusters  (ARI={ari:.3f}, Sil={sil:.3f})',
+            'True Listener Identity',
+        ],
+        horizontal_spacing=0.10,
+    )
+
+    for c, col_hex in enumerate(['#7B61FF', '#FF9F43']):
+        mask = cl == c
+        fig.add_trace(go.Scatter(
+            x=X2[mask, 0], y=X2[mask, 1], mode='markers',
+            marker=dict(color=col_hex, size=4, opacity=0.55, line=dict(width=0)),
+            name=f'Cluster {c}',
+            hovertemplate=f'Cluster {c}<extra></extra>',
+        ), row=1, col=1)
+
+    for u, (color, label) in enumerate([(C1, 'Person 1'), (C2, 'Person 2')]):
+        mask = tl == u
+        fig.add_trace(go.Scatter(
+            x=X2[mask, 0], y=X2[mask, 1], mode='markers',
+            marker=dict(color=color, size=4, opacity=0.55, line=dict(width=0)),
+            name=label,
+            hovertemplate=f'{label}<extra></extra>',
+        ), row=1, col=2)
+
+    pc1_label = f'PC1 ({var[0]:.1%} var)'
+    pc2_label = f'PC2 ({var[1]:.1%} var)'
+    for col in (1, 2):
+        fig.update_xaxes(title_text=pc1_label, gridcolor='#252525', row=1, col=col)
+        fig.update_yaxes(title_text=pc2_label, gridcolor='#252525', row=1, col=col)
+    fig.update_layout(**dark('Behavioral Clustering  ·  PCA 2D Projection', height=480))
+    return fig
+
+
+def fig_cluster_composition():
+    stats = CLUSTER_DATA['cluster_stats']
+    ari   = CLUSTER_DATA['ari']
+
+    clusters = [
+        f"Cluster {s['cluster']}  ({s['purity']:.0f}% pure, {s['dominant']} dominant)"
+        for s in stats
+    ]
+    fig = go.Figure([
+        go.Bar(x=clusters, y=[s['person1'] for s in stats],
+               name='Person 1', marker_color=C1, opacity=0.85,
+               hovertemplate='Person 1: %{y} tracks<extra></extra>'),
+        go.Bar(x=clusters, y=[s['person2'] for s in stats],
+               name='Person 2', marker_color=C2, opacity=0.85,
+               hovertemplate='Person 2: %{y} tracks<extra></extra>'),
+    ])
+    fig.update_layout(barmode='stack',
+                      **dark(f'Cluster Composition  ·  Track Distribution  (ARI={ari:.3f})', height=320))
+    grid_axes(fig)
+    return fig
+
+
+def fig_outliers():
+    df = CLUSTER_DATA['outliers']
+
+    fig = make_subplots(
+        1, 2,
+        subplot_titles=['Person 1  ·  Most Unusual Tracks', 'Person 2  ·  Most Unusual Tracks'],
+        horizontal_spacing=0.24,
+    )
+
+    for col, (user, color) in enumerate([('Person 1', C1), ('Person 2', C2)], 1):
+        sub = df[df['user'] == user].head(10).sort_values('distance').reset_index(drop=True)
+        labels = [row['track'][:30] for _, row in sub.iterrows()]
+        fig.add_trace(go.Bar(
+            x=sub['distance'].values, y=labels, orientation='h',
+            marker=dict(color=sub['distance'].values, colorscale=grad(color),
+                        showscale=False, line=dict(width=0)),
+            text=[f' {d:.2f}' for d in sub['distance'].values],
+            textposition='outside', textfont=dict(color=DIM, size=9),
+            showlegend=False,
+            hovertemplate='<b>%{y}</b><br>Outlier score: %{x:.4f}<extra></extra>',
+        ), row=1, col=col)
+
+    fig.update_layout(
+        **dark('Outlier Detection  ·  Most Unusual Listening Patterns (distance from cluster centroid)',
+               height=440))
+    grid_axes(fig)
+    fig.update_xaxes(showgrid=True)
+    return fig
+
+
 print("Building charts…")
 FIGS = dict(
-    hist       = fig_histogram(),
-    line       = fig_linechart(),
-    heat       = fig_heatmap(),
-    box_hour   = fig_box_hour(),
-    box_dow    = fig_box_dow(),
-    artists    = fig_top_artists(),
-    tracks     = fig_top_tracks(),
-    parallel   = fig_parallel(),
-    hourly_bar = fig_hourly_bar(),
-    race       = fig_animated_race(),
+    hist            = fig_histogram(),
+    line            = fig_linechart(),
+    heat            = fig_heatmap(),
+    box_hour        = fig_box_hour(),
+    box_dow         = fig_box_dow(),
+    artists         = fig_top_artists(),
+    tracks          = fig_top_tracks(),
+    parallel        = fig_parallel(),
+    hourly_bar      = fig_hourly_bar(),
+    race            = fig_animated_race(),
+    sim_radar       = fig_similarity_radar(),
+    sim_bars        = fig_similarity_bars(),
+    cluster_scatter = fig_cluster_scatter(),
+    cluster_comp    = fig_cluster_composition(),
+    outliers        = fig_outliers(),
 )

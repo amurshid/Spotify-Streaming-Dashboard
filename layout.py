@@ -4,6 +4,7 @@ import dash_bootstrap_components as dbc
 from config import C1, C2, BG, CARD2, DIM, TEXT
 from data import S1, S2, WC
 from charts import FIGS
+from analytics import SIM_FINAL, SIM_SCORES
 
 GCFG      = {"displayModeBar": False, "responsive": True}
 tab_style = {"padding": "20px 0 0"}
@@ -132,6 +133,134 @@ layout = dbc.Container([
 
         dbc.Tab(tab_id="tab-deep", label="⚡ Deep Dive", children=[
             html.Div([gchart("parallel"), gchart("hourly_bar"), gchart("race")], style=tab_style),
+        ]),
+
+        dbc.Tab(tab_id="tab-reco", label="🎵 Recommender", children=[
+            html.Div([
+
+                # ── Title ────────────────────────────────────────────────────
+                html.Div([
+                    html.Span("Personalized Music Recommender",
+                              style={"color": TEXT, "fontFamily": "Inter", "fontWeight": "700",
+                                     "fontSize": "15px"}),
+                    html.Span("  ·  uses your listening history to find tracks you'd enjoy from the other listener's library",
+                              style={"color": DIM, "fontFamily": "Inter", "fontSize": "11px",
+                                     "marginLeft": "10px"}),
+                ], style={"marginBottom": "16px", "marginTop": "20px"}),
+
+                # ── Controls card ────────────────────────────────────────────
+                html.Div([
+                    dbc.Row([
+                        dbc.Col([
+                            html.Div("Who are you?",
+                                     style={"color": DIM, "fontSize": "10px", "letterSpacing": "1.2px",
+                                            "textTransform": "uppercase", "fontFamily": "Inter",
+                                            "marginBottom": "10px"}),
+                            dbc.RadioItems(
+                                id="reco-person",
+                                options=[
+                                    {"label": html.Span("Person 1", style={"color": C1, "fontWeight": "600"}),
+                                     "value": "p1"},
+                                    {"label": html.Span("Person 2", style={"color": C2, "fontWeight": "600"}),
+                                     "value": "p2"},
+                                ],
+                                value="p1",
+                                inline=True,
+                                inputStyle={"marginRight": "6px"},
+                                labelStyle={"marginRight": "24px", "fontFamily": "Inter", "fontSize": "13px"},
+                            ),
+                        ], md=5),
+
+                        dbc.Col([
+                            html.Div("Model",
+                                     style={"color": DIM, "fontSize": "10px", "letterSpacing": "1.2px",
+                                            "textTransform": "uppercase", "fontFamily": "Inter",
+                                            "marginBottom": "10px"}),
+                            dbc.RadioItems(
+                                id="reco-model",
+                                options=[
+                                    {"label": html.Span("Decision Tree", style={"fontFamily": "Inter"}),
+                                     "value": "dt"},
+                                    {"label": html.Span("KNN  (k=5)", style={"fontFamily": "Inter"}),
+                                     "value": "knn"},
+                                ],
+                                value="dt",
+                                inline=True,
+                                inputStyle={"marginRight": "6px"},
+                                labelStyle={"marginRight": "24px", "fontFamily": "Inter",
+                                            "fontSize": "13px", "color": TEXT},
+                            ),
+                        ], md=5),
+                    ]),
+                ], style={"background": CARD2, "borderRadius": "12px", "padding": "18px 22px",
+                           "marginBottom": "20px", "boxShadow": "0 4px 24px rgba(0,0,0,0.4)"}),
+
+                # ── Summary stats (populated by callback) ───────────────────
+                html.Div(id="reco-summary"),
+
+                # ── Confusion matrix (populated by callback) ────────────────
+                html.Div(
+                    dcc.Graph(id="reco-cm", config={"displayModeBar": False, "responsive": True}),
+                    style={"borderRadius": "12px", "overflow": "hidden",
+                           "boxShadow": "0 4px 24px rgba(0,0,0,0.5)", "marginBottom": "16px"},
+                ),
+
+                # ── Recommendations chart (populated by callback) ───────────
+                html.Div(
+                    dcc.Graph(id="reco-chart", config={"displayModeBar": False, "responsive": True}),
+                    style={"borderRadius": "12px", "overflow": "hidden",
+                           "boxShadow": "0 4px 24px rgba(0,0,0,0.5)"},
+                ),
+
+            ], style=tab_style),
+        ]),
+
+        dbc.Tab(tab_id="tab-analytics", label="🔬 Analytics", children=[
+            html.Div([
+
+                # ── Similarity ───────────────────────────────────────────────
+                html.Div([
+                    html.Span("Listener Similarity",
+                              style={"color": TEXT, "fontFamily": "Inter", "fontWeight": "700",
+                                     "fontSize": "13px"}),
+                    html.Span(f"  ·  Weighted score: {SIM_FINAL:.3f}   "
+                              f"strongest: {max(SIM_SCORES, key=SIM_SCORES.get).replace('_',' ')} "
+                              f"({max(SIM_SCORES.values()):.3f})   "
+                              f"weakest: {min(SIM_SCORES, key=SIM_SCORES.get).replace('_',' ')} "
+                              f"({min(SIM_SCORES.values()):.3f})",
+                              style={"color": DIM, "fontSize": "11px", "marginLeft": "8px"}),
+                ], style={"marginBottom": "12px", "marginTop": "20px"}),
+                dbc.Row([
+                    dbc.Col(gchart("sim_radar"), md=6),
+                    dbc.Col(gchart("sim_bars"),  md=6),
+                ]),
+
+                html.Hr(style={"borderColor": "#252525", "margin": "4px 0 16px"}),
+
+                # ── Clustering ───────────────────────────────────────────────
+                html.Div([
+                    html.Span("K-Means Clustering  (k=2)",
+                              style={"color": TEXT, "fontFamily": "Inter", "fontWeight": "700",
+                                     "fontSize": "13px"}),
+                    html.Span("  ·  behavioral + artist features, PCA pre-reduced",
+                              style={"color": DIM, "fontSize": "11px", "marginLeft": "8px"}),
+                ], style={"marginBottom": "12px"}),
+                gchart("cluster_scatter"),
+                gchart("cluster_comp"),
+
+                html.Hr(style={"borderColor": "#252525", "margin": "4px 0 16px"}),
+
+                # ── Outlier Detection ────────────────────────────────────────
+                html.Div([
+                    html.Span("Outlier Detection",
+                              style={"color": TEXT, "fontFamily": "Inter", "fontWeight": "700",
+                                     "fontSize": "13px"}),
+                    html.Span("  ·  tracks farthest from their cluster centroid",
+                              style={"color": DIM, "fontSize": "11px", "marginLeft": "8px"}),
+                ], style={"marginBottom": "12px"}),
+                gchart("outliers"),
+
+            ], style=tab_style),
         ]),
 
     ]),
