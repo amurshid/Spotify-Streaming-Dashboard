@@ -49,7 +49,7 @@ def main():
     print("3. DECISION TREE — Would I like a song?")
     my_profile = build_user_profile(df_me)
     my_features = build_track_features(df_me, my_profile)
-    clf, dt_acc = train_classifier(my_features)
+    clf, dt_acc, _ = train_classifier(my_features)
 
     recs = predict_liked(clf, df_at, my_profile)
     print(f"\n  Songs from Atharva I'd likely enjoy ({len(recs)} total, showing top 10):")
@@ -63,7 +63,7 @@ def main():
     print("4. KNN (k=5) — Would Atharva like a song?")
     atharva_profile  = build_user_profile(df_at)
     atharva_features = build_track_features(df_at, atharva_profile)
-    knn, knn_acc = train_knn(atharva_features)
+    knn, knn_acc, _ = train_knn(atharva_features)
 
     print("\n  Random song prediction for Atharva:")
     predict_random_song(knn, df_me, atharva_profile, listener_name='Atharva')
