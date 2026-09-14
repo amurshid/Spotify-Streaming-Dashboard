@@ -40,6 +40,10 @@ def _similarity_features(group, artist, profile):
     }
 
 
+# NOTE: 'is_repeat' and 'play_count' are computed in build_track_features for
+# inspection but are deliberately NOT trained on. The label is derived from
+# play_count, so is_repeat is identical to it by construction — including either
+# one would let the model read the answer straight off its own input.
 FEATURES = [
     'skip_count',
     'artist_sim', 'hourly_sim', 'seasonal_sim', 'dow_sim',
@@ -51,7 +55,10 @@ def build_track_features(df, user_profile=None):
     """
     Build one row per unique (trackName, artistName).
     Features are similarity scores between each track's listening patterns and the user profile.
-    Liked = played more than 2 times AND never skipped (all plays > 30s).
+
+    Label — liked = the track was played more than once. Repeat listening is used
+    as the implicit-feedback signal for preference; Spotify's export carries no
+    explicit rating, so revisiting a track is the strongest available proxy.
     """
     if user_profile is None:
         user_profile = build_user_profile(df)
@@ -60,7 +67,7 @@ def build_track_features(df, user_profile=None):
     for (track, artist), group in df.groupby(['trackName', 'artistName']):
         play_count = len(group)
         skip_count = (group['msPlayed'] < 30000).sum()
-        liked = int(play_count > 1)
+        liked = int(play_count > 1)  # implicit feedback: a repeat play means preference
 
         feats = _similarity_features(group, artist, user_profile)
         feats.update({
