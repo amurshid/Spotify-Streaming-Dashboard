@@ -4,3 +4,5 @@ my_spotify_data/
 artist_genre_cache.json 
 track_year_cache.json
 kmeans_clustering.png
+.venv/
+venv/
