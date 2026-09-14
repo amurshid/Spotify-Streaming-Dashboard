@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 from sklearn.dummy import DummyClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -204,7 +203,7 @@ def predict_liked(clf, candidate_df, listener_profile):
     return candidates[candidates['predicted'] == 1][['track', 'artist']].reset_index(drop=True)
 
 
-def predict_random_song(clf, picker_df, listener_profile, listener_name='listener'):
+def predict_random_song(clf, picker_df, listener_profile):
     """
     Sample one track from picker_df and predict whether the listener behind
     listener_profile would return to it.

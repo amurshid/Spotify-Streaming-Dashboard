@@ -63,7 +63,7 @@ def main():
     print(recs.head(10).to_string(index=False))
 
     print("\n  Random song prediction for me:")
-    predict_random_song(clf, df_at, my_profile, listener_name='Me')
+    predict_random_song(clf, df_at, my_profile)
 
     # ── 4. KNN classifier (Atharva) ──────────────────────────────────────────
     print("\n" + "=" * 45)
@@ -72,7 +72,7 @@ def main():
     knn, kn = train_knn(atharva_features)
 
     print("\n  Random song prediction for Atharva:")
-    predict_random_song(knn, df_me, atharva_profile, listener_name='Atharva')
+    predict_random_song(knn, df_me, atharva_profile)
 
     # ── 5. Summary of findings ───────────────────────────────────────────────
     weakest_dim   = min(scores, key=scores.get)

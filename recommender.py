@@ -1,4 +1,3 @@
-import pandas as pd
 from data import p1, p2
 from classifier import (temporal_split, build_user_profile, build_track_features,
                         train_classifier, train_knn, FEATURES, _track_rows)
