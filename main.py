@@ -3,7 +3,7 @@ from dimensions import (hourly_vector, artist_vector, seasonal_vector,
                         dow_vector, skip_rate, track_diversity,
                         listen_duration_vector, engagement_vector)
 from similarity import cosine_sim, scalar_sim, print_report
-from classifier import (build_user_profile, build_track_features,
+from classifier import (temporal_split, build_user_profile, build_track_features,
                         train_classifier, train_knn,
                         predict_liked, predict_random_song)
 from clustering import run_kmeans_clustering
@@ -16,6 +16,13 @@ ATHARVA_FILES = [
     'atharva_more_spotify_data/StreamingHistory_music_0.json',
     'atharva_more_spotify_data/StreamingHistory_music_1.json',
 ]
+
+
+def _profile_and_features(df):
+    """Build the profile from the history window only, never the held-out future."""
+    history, _, cutoff = temporal_split(df)
+    profile = build_user_profile(history)
+    return profile, build_track_features(df, profile), cutoff
 
 
 def main():
@@ -46,13 +53,13 @@ def main():
 
     # ── 3. Decision Tree classifier (me) ─────────────────────────────────────
     print("\n" + "=" * 45)
-    print("3. DECISION TREE — Would I like a song?")
-    my_profile = build_user_profile(df_me)
-    my_features = build_track_features(df_me, my_profile)
-    clf, dt_acc, _ = train_classifier(my_features)
+    print("3. DECISION TREE — Would I return to a song?")
+    my_profile, my_features, cutoff = _profile_and_features(df_me)
+    print(f"  History/label split at {cutoff:%Y-%m-%d}\n")
+    clf, dt = train_classifier(my_features)
 
     recs = predict_liked(clf, df_at, my_profile)
-    print(f"\n  Songs from Atharva I'd likely enjoy ({len(recs)} total, showing top 10):")
+    print(f"\n  Songs from Atharva I'd likely come back to ({len(recs)} total, showing top 10):")
     print(recs.head(10).to_string(index=False))
 
     print("\n  Random song prediction for me:")
@@ -60,16 +67,15 @@ def main():
 
     # ── 4. KNN classifier (Atharva) ──────────────────────────────────────────
     print("\n" + "=" * 45)
-    print("4. KNN (k=5) — Would Atharva like a song?")
-    atharva_profile  = build_user_profile(df_at)
-    atharva_features = build_track_features(df_at, atharva_profile)
-    knn, knn_acc, _ = train_knn(atharva_features)
+    print("4. KNN (k=5) — Would Atharva return to a song?")
+    atharva_profile, atharva_features, _ = _profile_and_features(df_at)
+    knn, kn = train_knn(atharva_features)
 
     print("\n  Random song prediction for Atharva:")
     predict_random_song(knn, df_me, atharva_profile, listener_name='Atharva')
 
     # ── 5. Summary of findings ───────────────────────────────────────────────
-    weakest_dim  = min(scores, key=scores.get)
+    weakest_dim   = min(scores, key=scores.get)
     strongest_dim = max(scores, key=scores.get)
     separable = "YES" if ari > 0.3 else "PARTIALLY" if ari > 0.1 else "NO"
 
@@ -80,8 +86,10 @@ def main():
     print(f"  Most similar dimension    : {strongest_dim} ({scores[strongest_dim]:.4f})")
     print(f"  Least similar dimension   : {weakest_dim} ({scores[weakest_dim]:.4f})")
     print()
-    print(f"  Decision Tree accuracy    : {dt_acc:.1%}  (predicts if I'd like a song)")
-    print(f"  KNN accuracy              : {knn_acc:.1%}  (predicts if Atharva would like a song)")
+    print(f"  Decision Tree ROC-AUC     : {dt['roc_auc']:.3f}"
+          f"   (accuracy {dt['accuracy']:.1%} vs {dt['baseline_acc']:.1%} baseline)")
+    print(f"  KNN ROC-AUC               : {kn['roc_auc']:.3f}"
+          f"   (accuracy {kn['accuracy']:.1%} vs {kn['baseline_acc']:.1%} baseline)")
     print()
     print(f"  Clustering ARI            : {ari:.4f}  →  listeners separable? {separable}")
     print(f"  Songs recommended to me from Atharva's library: {len(recs)}")

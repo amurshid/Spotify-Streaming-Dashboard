@@ -27,7 +27,8 @@ app.layout = layout
     Input("reco-model",    "value"),
 )
 def update_reco(person, model):
-    df, acc, cm   = RECS[(person, model)]
+    df, m         = RECS[(person, model)]
+    acc, cm       = m['accuracy'], m['cm']
     color         = C1 if person == 'p1' else C2
     person_label  = "Person 1" if person == 'p1' else "Person 2"
     source_label  = "Person 2" if person == 'p1' else "Person 1"
@@ -72,7 +73,7 @@ def update_reco(person, model):
     tn, fp, fn, tp_val = cm.ravel()
     total = cm.sum()
 
-    labels    = ["Not Liked", "Liked"]
+    labels    = ["Not Returned", "Returned"]
     z_vals    = [[tn, fp], [fn, tp_val]]
     z_pct     = [[tn / total, fp / total], [fn / total, tp_val / total]]
 
@@ -106,8 +107,6 @@ def update_reco(person, model):
     )
 
     # ── Summary stat cards ───────────────────────────────────────────────────
-    precision = tp_val / (tp_val + fp) if (tp_val + fp) > 0 else 0
-    recall    = tp_val / (tp_val + fn) if (tp_val + fn) > 0 else 0
 
     def _stat(label, value, note=""):
         return dbc.Col(dbc.Card(dbc.CardBody([
@@ -122,12 +121,15 @@ def update_reco(person, model):
                    "boxShadow": "0 4px 24px rgba(0,0,0,0.4)"}), md=2)
 
     summary = dbc.Row([
-        _stat("Model",       model_label),
-        _stat("Accuracy",    f"{acc:.1%}",         "held-out test set"),
-        _stat("Precision",   f"{precision:.1%}",   "of predicted liked, truly liked"),
-        _stat("Recall",      f"{recall:.1%}",      "of truly liked, correctly found"),
-        _stat("Recommended", str(len(df)),          f"tracks from {source_label}"),
-        _stat("Showing",     f"Top {min(20,len(df))}", "sorted by confidence"),
+        _stat("ROC-AUC",     f"{m['roc_auc']:.3f}",
+              f"5-fold CV {m['cv_auc_mean']:.3f} +/- {m['cv_auc_std']:.3f}"),
+        _stat("Accuracy",    f"{acc:.1%}",
+              f"majority baseline {m['baseline_acc']:.1%}"),
+        _stat("PR-AUC",      f"{m['pr_auc']:.3f}",
+              f"baseline {m['baseline_pr']:.3f}"),
+        _stat("Precision",   f"{m['precision']:.1%}", "of predicted, truly returned"),
+        _stat("Recall",      f"{m['recall']:.1%}",    "of returned, correctly found"),
+        _stat("Recommended", str(len(df)),            f"tracks from {source_label}"),
     ], className="g-2 mb-3")
 
     return fig, cm_fig, summary
