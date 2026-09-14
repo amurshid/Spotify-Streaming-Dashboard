@@ -42,11 +42,11 @@ Each vector is L1-normalized to a proportion, so users with wildly different tot
 
 [`similarity.py`](similarity.py) scores two listeners per dimension with cosine similarity, then combines them into a single weighted score. Weights renormalize over whichever dimensions are present, so the measure degrades gracefully on partial data.
 
-### Supervised — would this listener like this track?
+### Supervised — would this listener return to this track?
 
 [`classifier.py`](classifier.py) builds one row per unique `(track, artist)` pair. Features are **similarity scores between that track's listening pattern and the user's overall profile** — the model never sees the track's raw identity, only how well its behavioral signature matches the listener.
 
-Two classifiers are trained and compared on a stratified held-out split: a depth-limited **decision tree** and **KNN (k=5)**.
+The history is split chronologically at 80%. Features are built from the earlier window; the label — *did the listener come back to this track?* — is taken from the later one. Two classifiers are compared: a depth-limited **decision tree** and **KNN (k=5)** inside a scaling pipeline.
 
 ### Unsupervised — are two listeners separable?
 
@@ -56,7 +56,7 @@ Distance from each track to its assigned centroid doubles as an **outlier score*
 
 ### Recommender
 
-[`recommender.py`](recommender.py) trains a model on one person's profile, then scores every track in the *other* person's library and ranks the predicted-liked tracks by `predict_proba` confidence.
+[`recommender.py`](recommender.py) trains a model on one person's profile, then scores every track in the *other* person's library and ranks the predicted returns by `predict_proba` confidence.
 
 ---
 
@@ -64,12 +64,20 @@ Distance from each track to its assigned centroid doubles as an **outlier score*
 
 Two decisions that are easy to get wrong, and how they're handled here:
 
-**Label design and leakage.** Spotify's export contains no explicit ratings, so preference is inferred from implicit feedback: `liked = play_count > 1`. Because the label is derived from play count, the `is_repeat` feature is *identical to the label by construction*. It is computed for inspection but deliberately excluded from `FEATURES` — training on it would produce a model that reads the answer off its own input and reports a meaningless accuracy.
+**Label leakage, and why a random split could not fix it.** Spotify's export has no explicit ratings, so preference has to be inferred from implicit feedback. The obvious label — `played more than once` — leaks badly, and dropping the offending feature does not fix it.
 
-**Evaluation beyond accuracy.** Accuracy alone is uninformative on an imbalanced label. The pipeline reports:
+The reason is structural: every feature is aggregated over a track's plays, so a label derived from *those same plays* bleeds into all of them at once through the group size. A raw skip count is bounded above by the play count, so `skip_count >= 2` implies the label outright. Subtler, a single-play track's hourly vector is a one-hot while a repeatedly-played track's is spread across hours — so even the cosine similarities encode play count. No random train/test split can separate them, because the leak is in the feature construction, not the row assignment.
 
-- **Classification** — confusion matrix, precision and recall, and the tree's top split feature
+The fix is to split on **time** rather than on rows. Features come from the first 80% of the history; the label — whether the listener returned to the track — comes from the held-out remainder. Features and label now derive from disjoint sets of plays, which closes both paths at once. Play count becomes a legitimate feature again, because a track's history is genuinely known at prediction time.
+
+**Evaluation beyond accuracy.** Roughly three quarters of tracks are never returned to, so a model that predicts "no" every time already scores about 75%. Accuracy alone cannot tell you whether a model beat that. The pipeline reports:
+
+- **Classification** — accuracy *against a `DummyClassifier` majority baseline*, ROC-AUC, PR-AUC against the positive rate, precision, recall, a confusion matrix, and 5-fold stratified cross-validated AUC with its standard deviation
 - **Clustering** — Adjusted Rand Index against true listener identity, silhouette score, and per-cluster purity
+
+Reporting the baseline alongside the score is the point: under the temporal split the decision tree's raw accuracy can land *below* the majority baseline while its AUC is clearly above chance — a model with real signal that a single accuracy figure would misrepresent in both directions.
+
+**Scaling inside the pipeline.** KNN is distance-based, and `play_count` is an unbounded count while every similarity feature is bounded to `[0, 1]`. Unscaled, `play_count` alone would determine every neighbourhood. The `StandardScaler` sits *inside* a `Pipeline`, so it is refit on each cross-validation fold rather than on the full dataset — fitting it once up front would leak test-fold statistics into training.
 
 Both are surfaced in the dashboard, not just printed, so the model's failure modes are visible alongside its successes.
 
@@ -108,6 +116,8 @@ Both are surfaced in the dashboard, not just printed, so the model's failure mod
 │   ├── data_loader.py  # JSON loading, overlap-window alignment (CLI)
 │   └── data.py         # Loading, derived columns, stats, word clouds (dashboard)
 │
+└── generate_sample_data.py   # Synthetic exports (dev fixture, see Development)
+│
 ├── presentation
 │   ├── charts.py       # Plotly figure builders
 │   ├── layout.py       # Dash components and page layout
@@ -119,9 +129,9 @@ Both are surfaced in the dashboard, not just printed, so the model's failure mod
 
 ## Getting Started
 
-### 1. Get the data
+### 1. Get your data
 
-Request your export from [Spotify Privacy Settings](https://www.spotify.com/account/privacy/), then place each person's `StreamingHistory_music_*.json` files in their own directory:
+Request your export from [Spotify Privacy Settings](https://www.spotify.com/account/privacy/). Place each person's `StreamingHistory_music_*.json` files in their own directory:
 
 ```
 my_spotify_data/
@@ -132,22 +142,21 @@ atharva_more_spotify_data/
 └── StreamingHistory_music_1.json
 ```
 
-Both directories are gitignored. The exact filenames read are listed at the top of [`data.py`](data.py) and [`main.py`](main.py) — adjust them to match how many files your export contains.
+Both directories are gitignored — no listening history is committed to this repo. The exact filenames read are listed at the top of [`data.py`](data.py) and [`main.py`](main.py); adjust them to match how many files your export contains.
 
-### 2. Install dependencies
+### 2. Install
 
 ```bash
-pip install pandas numpy scikit-learn matplotlib plotly dash dash-bootstrap-components wordcloud
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ### 3. Run
 
 ```bash
-python app.py    # interactive dashboard → http://127.0.0.1:8050
+python app.py    # interactive dashboard -> http://127.0.0.1:8050
 python main.py   # full analysis pipeline, printed to stdout
 ```
-
----
 
 ## Data Schema
 
@@ -172,3 +181,15 @@ Plays under 30 seconds are treated as skips throughout — Spotify's own thresho
 - [Plotly](https://plotly.com/python/) — Interactive charting
 - [Dash Bootstrap Components](https://dash-bootstrap-components.opensource.faculty.ai/) — UI components
 - [WordCloud](https://github.com/amueller/word_cloud) — Word cloud generation
+
+---
+
+## Development
+
+Spotify takes several days to fulfil a data export. [`generate_sample_data.py`](generate_sample_data.py) writes seeded synthetic exports into the same directories, so the pipeline can be exercised end to end in the meantime:
+
+```bash
+python generate_sample_data.py
+```
+
+This is a smoke-test fixture, not a demo. The synthetic data has no real relationship between a track's history and whether it is returned to later, so model scores on it sit near chance. It verifies that the code runs — not that the model works.
