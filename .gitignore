@@ -6,3 +6,5 @@ track_year_cache.json
 kmeans_clustering.png
 .venv/
 venv/
+real_data/
+.DS_Store

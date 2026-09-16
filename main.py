@@ -9,12 +9,10 @@ from classifier import (temporal_split, build_user_profile, build_track_features
 from clustering import run_kmeans_clustering
 
 MY_FILES = [
-    'my_spotify_data/StreamingHistory_music_0.json',
-    'my_spotify_data/StreamingHistory_music_1.json',
+    f'my_spotify_data/StreamingHistory_music_{i}.json' for i in range(5)
 ]
 ATHARVA_FILES = [
-    'atharva_more_spotify_data/StreamingHistory_music_0.json',
-    'atharva_more_spotify_data/StreamingHistory_music_1.json',
+    f'atharva_more_spotify_data/StreamingHistory_music_{i}.json' for i in range(2)
 ]
 
 
