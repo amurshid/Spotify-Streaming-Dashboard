@@ -1,10 +1,27 @@
-__pycache__/
-atharva_more_spotify_data/ 
+# Personal data — Spotify exports contain identity, address, payment and
+# message files alongside the listening history. None of it belongs in git.
+real_data/
 my_spotify_data/
-artist_genre_cache.json 
+atharva_more_spotify_data/
+*_spotify_data/
+StreamingHistory*.json
+Userdata.json
+Identity.json
+Identifiers.json
+UserAddress.json
+Payments.json
+MessageData.json
+SearchQueries.json
+
+# Caches
+__pycache__/
+.pytest_cache/
+artist_genre_cache.json
 track_year_cache.json
+
+# Environments
 .venv/
 venv/
-real_data/
+
+# OS
 .DS_Store
-.pytest_cache/
