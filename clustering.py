@@ -210,12 +210,22 @@ def _plot_pca(combined, behaviour):
         ax.set_xlabel(f'PC1 ({var[0]:.1%} var)')
         ax.set_ylabel(f'PC2 ({var[1]:.1%} var)')
 
-    axes[2].bar(['behaviour\nonly', 'behaviour\n+ artist'],
-                [behaviour['ari'], combined['ari']],
-                color=['#888888', '#1DB954'])
+    aris = [behaviour['ari'], combined['ari']]
+    bars = axes[2].bar(['behaviour\nonly', 'behaviour\n+ artist'], aris,
+                       color=['#888888', '#1DB954'])
+    axes[2].axhline(0, color='#333', linewidth=0.8)
     axes[2].set_title('Separability by feature set')
     axes[2].set_ylabel('Adjusted Rand Index')
-    axes[2].set_ylim(0, 1)
+    # Both scores sit near zero, so a 0-1 axis would hide a negative bar
+    # entirely. Keep 1.0 in view for scale but let the axis reach below zero.
+    axes[2].set_ylim(min(-0.08, min(aris) * 1.5), 1.0)
+    for bar, ari in zip(bars, aris):
+        axes[2].text(bar.get_x() + bar.get_width() / 2,
+                     ari + (0.03 if ari >= 0 else -0.06),
+                     f'{ari:.4f}', ha='center', fontsize=10)
+    axes[2].text(0.5, 0.55, '1.0 = perfect separation\n0.0 = random',
+                 transform=axes[2].transAxes, ha='center',
+                 fontsize=9, color='#666')
 
     plt.suptitle('K-Means Clustering — Behavioural and Artist Features',
                  fontweight='bold')

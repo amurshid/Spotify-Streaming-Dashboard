@@ -119,6 +119,10 @@ Neither separates the two listeners (ARI 0 is random). That holds up under scrut
 - **Behaviorally they are near-identical.** Day-of-week similarity is 0.989, hourly 0.881, engagement 0.934. There is little for a behavioral clustering to split on.
 - **Artist identity cannot help in this encoding.** Their libraries genuinely differ — artist similarity is 0.040, with only 12% of the combined artist set shared. But a track's one-hot has a single 1, so any two tracks by different artists are orthogonal *whether or not they belong to the same listener*. The block encodes which artist a track belongs to and nothing about which listener that artist belongs to, leaving K-Means no co-occurrence structure to exploit. Recovering it would need an artist representation learned from co-listening, which cannot be built here without using the labels.
 
+![K-Means clustering of both listeners' tracks](kmeans_clustering.png)
+
+The left and middle panels are the result in one picture. K-Means does find two clean, well-separated clusters — it is not failing to converge. They simply have nothing to do with who was listening: colour the same points by true identity and both listeners are spread evenly across both clusters.
+
 So: two people who listen to almost entirely different music, in almost exactly the same way.
 
 ---
