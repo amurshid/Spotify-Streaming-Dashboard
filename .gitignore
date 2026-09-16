@@ -7,3 +7,4 @@ track_year_cache.json
 venv/
 real_data/
 .DS_Store
+.pytest_cache/

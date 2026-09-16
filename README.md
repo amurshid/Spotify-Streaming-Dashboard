@@ -160,7 +160,8 @@ So: two people who listen to almost entirely different music, in almost exactly 
 │   ├── data_loader.py  # JSON loading, overlap-window alignment (CLI)
 │   └── data.py         # Loading, derived columns, stats, word clouds (dashboard)
 │
-└── generate_sample_data.py   # Synthetic exports (dev fixture, see Development)
+├── generate_sample_data.py   # Synthetic exports (dev fixture, see Development)
+└── tests/                    # pytest suite — run with `pytest`
 │
 ├── presentation
 │   ├── charts.py       # Plotly figure builders
@@ -229,6 +230,27 @@ Plays under 30 seconds are treated as skips throughout — Spotify's own thresho
 ---
 
 ## Development
+
+### Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+83 tests, no personal data required — they build their own frames or use the synthetic fixture. What they cover:
+
+| File | Covers |
+|---|---|
+| [`test_dimensions.py`](tests/test_dimensions.py) | Every feature vector: fixed length, sums to 1, and returns zeros rather than `NaN` on empty input — each function's zero-division guard |
+| [`test_classifier.py`](tests/test_classifier.py) | **Leakage regression.** A track played twice before the split and five times after must report a play count of two; skip rate must ignore the future window; features built by the entry point must equal those built from the history window alone |
+| [`test_similarity.py`](tests/test_similarity.py) | Cosine behaviour on identical, orthogonal, scaled and zero vectors; weighted aggregation renormalising over present dimensions |
+| [`test_clustering.py`](tests/test_clustering.py) | Block widths and one-hot encoding, including the orthogonality property that explains the separability result |
+| [`test_pipeline.py`](tests/test_pipeline.py) | The full profile → features → train → recommend path, and the generator's schema and determinism |
+
+The leakage tests are the ones worth keeping. The bug they guard could not be caught by a train/test split, because it lived in the feature construction rather than the row assignment — so without a test pinning the temporal split down, a later change could quietly reintroduce it and report a better score for doing so.
+
+### Sample data
 
 Spotify takes several days to fulfil a data export. [`generate_sample_data.py`](generate_sample_data.py) writes seeded synthetic exports into the same directories, so the pipeline can be exercised end to end in the meantime:
 
