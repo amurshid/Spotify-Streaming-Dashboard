@@ -50,7 +50,9 @@ The history is split chronologically at 80%. Features are built from the earlier
 
 ### Unsupervised — are two listeners separable?
 
-[`clustering.py`](clustering.py) concatenates the 46-dim behavioral vector with a sparse artist one-hot, standardizes, then applies **PCA before K-Means**. The pre-reduction is deliberate: raw high-dimensional sparse one-hot encoding collapses Euclidean distance (curse of dimensionality) and K-Means degenerates. PCA compresses the artist structure into dense components the clustering can actually separate on.
+[`clustering.py`](clustering.py) clusters tracks from both listeners and scores the split against true identity. The two feature blocks are reduced separately, because they cannot share a preprocessing path: standardizing a sparse artist one-hot rescales every near-empty column up to unit variance, spreading variance evenly across all columns and leaving PCA nothing concentrated to find. The behavioral block is standardized; the artist indicator goes through **TruncatedSVD**, which does not center and so preserves the sparse structure. On the histories below this raised retained variance from 4.3% to 31.7%.
+
+It runs twice — on behavior alone, and with artist identity added — and reports both.
 
 Distance from each track to its assigned centroid doubles as an **outlier score**, surfacing the most behaviorally unusual tracks per listener.
 
@@ -80,6 +82,44 @@ Reporting the baseline alongside the score is the point: under the temporal spli
 **Scaling inside the pipeline.** KNN is distance-based, and `play_count` is an unbounded count while every similarity feature is bounded to `[0, 1]`. Unscaled, `play_count` alone would determine every neighbourhood. The `StandardScaler` sits *inside* a `Pipeline`, so it is refit on each cross-validation fold rather than on the full dataset — fitting it once up front would leak test-fold statistics into training.
 
 Both are surfaced in the dashboard, not just printed, so the model's failure modes are visible alongside its successes.
+
+---
+
+## Results
+
+Measured on the author's own export — 45,013 plays against a second listener's 14,522, over a shared window of March 2025 to March 2026. Numbers are specific to these two histories; the point is the protocol, not the values.
+
+### Track return prediction
+
+Predicting whether a listener comes back to a track in the held-out final 20% of their history:
+
+| | Decision Tree | KNN (k=5) |
+|---|---|---|
+| Tracks | 5,062 | 3,236 |
+| Return rate | 18.6% | 19.0% |
+| **ROC-AUC** | **0.858** | **0.797** |
+| 5-fold CV ROC-AUC | 0.851 ± 0.007 | 0.781 ± 0.035 |
+| PR-AUC | 0.503 *(baseline 0.186)* | 0.540 *(baseline 0.190)* |
+| Accuracy | 76.9% *(baseline 81.4%)* | 84.7% *(baseline 81.0%)* |
+| Precision / Recall | 43.7% / 85.1% | 64.0% / 44.7% |
+
+**The decision tree scores below the majority-class baseline on accuracy while reaching 0.858 ROC-AUC.** Reported alone, accuracy would call it worse than a model that always answers "no". It is in fact a strong ranker that `class_weight='balanced'` has pushed toward recall, catching 85% of the tracks actually returned to. PR-AUC nearly triples the positive rate, and the cross-validated spread of ±0.007 says the result is stable rather than a lucky split. This is the case the evaluation protocol exists to catch.
+
+The two models divide the tradeoff: the tree finds almost everything at low precision, KNN is precise but recovers under half.
+
+### Listener separability — a negative result
+
+| Feature set | ARI | Silhouette |
+|---|---|---|
+| Behavior only | 0.0389 | 0.0769 |
+| Behavior + artist | −0.0157 | 0.0451 |
+
+Neither separates the two listeners (ARI 0 is random). That holds up under scrutiny rather than indicating a broken pipeline:
+
+- **Behaviorally they are near-identical.** Day-of-week similarity is 0.989, hourly 0.881, engagement 0.934. There is little for a behavioral clustering to split on.
+- **Artist identity cannot help in this encoding.** Their libraries genuinely differ — artist similarity is 0.040, with only 12% of the combined artist set shared. But a track's one-hot has a single 1, so any two tracks by different artists are orthogonal *whether or not they belong to the same listener*. The block encodes which artist a track belongs to and nothing about which listener that artist belongs to, leaving K-Means no co-occurrence structure to exploit. Recovering it would need an artist representation learned from co-listening, which cannot be built here without using the labels.
+
+So: two people who listen to almost entirely different music, in almost exactly the same way.
 
 ---
 
